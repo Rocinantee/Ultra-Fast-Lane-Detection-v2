@@ -26,7 +26,7 @@ def get_scheduler(optimizer, cfg, iters_per_epoch):
     return scheduler
 
 def get_loss_dict(cfg):
-    if cfg.dataset == 'CurveLanes':
+    if cfg.dataset in ['CurveLanes','EdgeDetect']:
         loss_dict = {
             'name': ['cls_loss', 'relation_loss', 'relation_dis','cls_loss_col','cls_ext','cls_ext_col', 'mean_loss_row', 'mean_loss_col','var_loss_row', 'var_loss_col', 'lane_token_seg_loss_row', 'lane_token_seg_loss_col'],
             'op': [SoftmaxFocalLoss(2, ignore_lb=-1), ParsingRelationLoss(), ParsingRelationDis(), SoftmaxFocalLoss(2, ignore_lb=-1), torch.nn.CrossEntropyLoss(),  torch.nn.CrossEntropyLoss(), MeanLoss(), MeanLoss(), VarLoss(cfg.var_loss_power), VarLoss(cfg.var_loss_power), TokenSegLoss(), TokenSegLoss()],

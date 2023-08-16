@@ -10,3 +10,13 @@ evaluate
 **/dist
 **/*egg-info
 *.lprof
+
+test0_normal.avi
+test1_crowd.avi
+test2_hlight.avi
+test3_shadow.avi
+test4_noline.avi
+test5_arrow.avi
+test6_curve.avi
+test7_cross.avi
+test8_night.avi

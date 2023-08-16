@@ -94,6 +94,9 @@ def merge_config():
     elif cfg.dataset == 'CurveLanes':
         cfg.row_anchor = np.linspace(0.4, 1, cfg.num_row)
         cfg.col_anchor = np.linspace(0, 1, cfg.num_col)
+    elif cfg.dataset == 'EdgeDetect':
+        cfg.row_anchor = np.linspace(0.4, 1, cfg.num_row)
+        cfg.col_anchor = np.linspace(0, 1, cfg.num_col)
     
     return args, cfg
 
@@ -190,12 +193,15 @@ def get_train_loader(cfg):
     elif cfg.dataset == 'CurveLanes':
         train_loader = TrainCollect(cfg.batch_size, 4, cfg.data_root, os.path.join(cfg.data_root, 'train', 'train_gt.txt'), get_rank(), get_world_size(), 
                                 cfg.row_anchor, cfg.col_anchor, cfg.train_width, cfg.train_height, cfg.num_cell_row, cfg.num_cell_col, cfg.dataset, cfg.crop_ratio)
+    elif cfg.dataset == 'EdgeDetect':
+        train_loader = TrainCollect(cfg.batch_size, 4, cfg.data_root, os.path.join(cfg.data_root, 'train', 'train_gt.txt'), get_rank(), get_world_size(), 
+                                cfg.row_anchor, cfg.col_anchor, cfg.train_width, cfg.train_height, cfg.num_cell_row, cfg.num_cell_col, cfg.dataset, cfg.crop_ratio)
     else:
         raise NotImplementedError
     return train_loader 
 
 def inference(net, data_label, dataset):
-    if dataset == 'CurveLanes':
+    if dataset in ['CurveLanes','EdgeDetect']:
         return inference_curvelanes(net, data_label)
     elif dataset in ['Tusimple', 'CULane']:
         return inference_culane_tusimple(net, data_label)

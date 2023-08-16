@@ -12,6 +12,7 @@ import time
 from evaluation.eval_wrapper import eval_lane
 
 def train(net, data_loader, loss_dict, optimizer, scheduler,logger, epoch, metric_dict, dataset):
+    print(net)
     net.train()
     progress_bar = dist_tqdm(train_loader)
     for b_idx, data_label in enumerate(progress_bar):
@@ -42,7 +43,35 @@ def train(net, data_loader, loss_dict, optimizer, scheduler,logger, epoch, metri
                     new_kwargs[k] = v
                 progress_bar.set_postfix(loss = '%.3f' % float(loss), 
                                         **new_kwargs)
-        
+                
+def validate(net, data_loader, loss_dict, optimizer, scheduler,logger, epoch, metric_dict, dataset):
+    net.eval()
+    progress_bar = dist_tqdm(train_loader)
+    for b_idx, data_label in enumerate(progress_bar):
+        global_step = epoch * len(data_loader) + b_idx
+
+        results = inference(net, data_label, dataset)
+
+        loss = calc_loss(loss_dict, results, logger, global_step, epoch)
+
+
+        if global_step % 20 == 0:
+            reset_metrics(metric_dict)
+            update_metrics(metric_dict, results)
+            for me_name, me_op in zip(metric_dict['name'], metric_dict['op']):
+                logger.add_scalar('metric/' + me_name, me_op.get(), global_step=global_step)
+            logger.add_scalar('meta/lr', optimizer.param_groups[0]['lr'], global_step=global_step)
+
+            if hasattr(progress_bar,'set_postfix'):
+                kwargs = {me_name: '%.3f' % me_op.get() for me_name, me_op in zip(metric_dict['name'], metric_dict['op'])}
+                new_kwargs = {}
+                for k,v in kwargs.items():
+                    if 'lane' in k:
+                        continue
+                    new_kwargs[k] = v
+                progress_bar.set_postfix(loss = '%.3f' % float(loss), 
+                                        **new_kwargs)    
+    
 
 if __name__ == "__main__":
     torch.backends.cudnn.benchmark = True
@@ -117,11 +146,14 @@ if __name__ == "__main__":
         train(net, train_loader, loss_dict, optimizer, scheduler,logger, epoch, metric_dict, cfg.dataset)
         train_loader.reset()
 
-        res = eval_lane(net, cfg, ep = epoch, logger = logger)
+        #res = eval_lane(net, cfg, ep = epoch, logger = logger)
 
-        if res is not None and res > max_res:
-            max_res = res
+        if epoch == cfg.epoch - 1:
             save_model(net, optimizer, epoch, work_dir, distributed)
-        logger.add_scalar('CuEval/X',max_res,global_step = epoch)
+        
+        # if res is not None and res > max_res:
+        #     max_res = res
+        #     save_model(net, optimizer, epoch, work_dir, distributed)
+        # logger.add_scalar('CuEval/X',max_res,global_step = epoch)
 
     logger.close()

@@ -1,6 +1,7 @@
 import torch,pdb
 import torchvision
 import torch.nn.modules
+import torch.nn as nn
 
 class vgg16bn(torch.nn.Module):
     def __init__(self,pretrained = False):
@@ -38,6 +39,8 @@ class resnet(torch.nn.Module):
             raise NotImplementedError
         
         self.conv1 = model.conv1
+        # self.conv1.weight = nn.Parameter(self.conv1.weight[:, 0:1, :, :].contiguous())
+        # self.conv1.in_channels = 1
         self.bn1 = model.bn1
         self.relu = model.relu
         self.maxpool = model.maxpool

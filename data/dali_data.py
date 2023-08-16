@@ -36,6 +36,8 @@ class LaneExternalIterator(object):
                 cache_path = os.path.join(path, 'tusimple_anno_cache.json')
             elif dataset_name == 'CurveLanes':
                 cache_path = os.path.join(path, 'train', 'curvelanes_anno_cache.json')
+            elif dataset_name == 'EdgeDetect':
+                cache_path = os.path.join(path, 'train', 'edge_anno_cache.json')
             else:
                 raise NotImplementedError
 
@@ -135,11 +137,15 @@ def encoded_images_sizes(jpegs):
     w = fn.slice(shapes, 1, 1, axes=[0]) # ...and width...
     return fn.cat(w, h)               # ...and concatenate
 
-def ExternalSourceTrainPipeline(batch_size, num_threads, device_id, external_data, train_width, train_height, top_crop, normalize_image_scale = False, nscale_w = None, nscale_h = None):
+def ExternalSourceTrainPipeline(dataset_name,batch_size, num_threads, device_id, external_data, train_width, train_height, top_crop, normalize_image_scale = False, nscale_w = None, nscale_h = None):
     pipe = Pipeline(batch_size, num_threads, device_id)
     with pipe:
         jpegs, seg_images, labels = fn.external_source(source=external_data, num_outputs=3)
-        images = fn.decoders.image(jpegs, device="mixed")
+        if dataset_name == 'EdgeDetect':
+            #images = fn.decoders.image(jpegs, device="mixed", output_type=types.GRAY)
+            images = fn.decoders.image(jpegs, device="mixed")
+        else:
+            images = fn.decoders.image(jpegs, device="mixed")
         seg_images = fn.decoders.image(seg_images, device="mixed")
         if normalize_image_scale:
             images = fn.resize(images, resize_x=nscale_w, resize_y=nscale_h)
@@ -163,8 +169,19 @@ def ExternalSourceTrainPipeline(batch_size, num_threads, device_id, external_dat
         images = fn.resize(images, resize_x=train_width, resize_y=int(train_height/top_crop))
         seg_images = fn.resize(seg_images, resize_x=train_width, resize_y=int(train_height/top_crop), interp_type=types.INTERP_NN)
 
-
-        images = fn.crop_mirror_normalize(images, 
+        if dataset_name == 'EdgeDetect':
+            # images = fn.crop_mirror_normalize(images, 
+            #                                 dtype=types.FLOAT, 
+            #                                 mean = [0.5 * 255],
+            #                                 std = [0.5 * 255],
+            #                                 crop = (train_height, train_width), crop_pos_x = 0., crop_pos_y = 1.)
+            images = fn.crop_mirror_normalize(images, 
+                                            dtype=types.FLOAT, 
+                                            mean = [0.485 * 255, 0.456 * 255, 0.406 * 255],
+                                            std = [0.229 * 255, 0.224 * 255, 0.225 * 255],
+                                            crop = (train_height, train_width), crop_pos_x = 0., crop_pos_y = 1.)
+        else:
+            images = fn.crop_mirror_normalize(images, 
                                             dtype=types.FLOAT, 
                                             mean = [0.485 * 255, 0.456 * 255, 0.406 * 255],
                                             std = [0.229 * 255, 0.224 * 255, 0.225 * 255],
@@ -221,11 +238,16 @@ class TrainCollect:
         elif dataset_name == 'CurveLanes':
             self.original_image_width = 2560
             self.original_image_height = 1440
+        elif dataset_name == 'EdgeDetect':
+            self.original_image_height = 1440
+            self.original_image_width = 2560
 
         if dataset_name == 'CurveLanes':
-            pipe = ExternalSourceTrainPipeline(batch_size, num_threads, shard_id, eii, train_width, train_height,top_crop, normalize_image_scale = True, nscale_w = 2560, nscale_h = 1440)
+            pipe = ExternalSourceTrainPipeline(dataset_name,batch_size, num_threads, shard_id, eii, train_width, train_height,top_crop, normalize_image_scale = True, nscale_w = 2560, nscale_h = 1440)
+        elif dataset_name == 'EdgeDetect':
+            pipe = ExternalSourceTrainPipeline(dataset_name,batch_size, num_threads, shard_id, eii, train_width, train_height,top_crop, normalize_image_scale = True, nscale_w = 1920, nscale_h = 1080)
         else:
-            pipe = ExternalSourceTrainPipeline(batch_size, num_threads, shard_id, eii, train_width, train_height,top_crop)
+            pipe = ExternalSourceTrainPipeline(dataset_name,batch_size, num_threads, shard_id, eii, train_width, train_height,top_crop)
         self.pii = DALIGenericIterator(pipe, output_map = ['images', 'seg_images', 'points'], last_batch_padded=True, last_batch_policy=LastBatchPolicy.PARTIAL)
         self.eii_n = eii.n
         self.batch_size = batch_size

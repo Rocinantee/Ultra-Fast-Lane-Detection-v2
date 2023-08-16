@@ -170,7 +170,7 @@ def generate_lines_local_curve_combine(dataset, out, out_ext, names, output_path
     if mode == 'normal' or mode == '2row2col':
         if dataset == 'CULane':
             lane_list = [1, 2]
-        elif dataset == 'CurveLanes':
+        elif dataset == 'CurveLanes' or dataset == 'EdgeDetect':
             # lane_list = [2, 3, 4, 5, 6, 7]
             lane_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     else:
@@ -200,6 +200,9 @@ def generate_lines_local_curve_combine(dataset, out, out_ext, names, output_path
                             elif dataset == 'CurveLanes':
                                 out_tmp = out_tmp / (out.shape[1]-1) * 2560
                                 fp.write('%.3f %.3f '% ( out_tmp , row_anchor[k] * 1440))
+                            elif dataset == 'EdgeDetect':
+                                out_tmp = out_tmp / (out.shape[1]-1) * 1920
+                                fp.write('%.3f %.3f '% ( out_tmp , row_anchor[k] * 1080))
                             else:
                                 raise Exception
                     fp.write('\n')
@@ -218,7 +221,7 @@ def generate_lines_col_local_curve_combine(dataset, out_col,out_col_ext, names, 
     if mode == 'normal' or mode == '2row2col':
         if dataset == 'CULane':
             lane_list = [0, 3]
-        elif dataset == 'CurveLanes':
+        elif dataset == 'CurveLanes'or dataset == 'EdgeDetect':
             # lane_list = [0, 1, 8, 9]
             lane_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     else:
@@ -246,6 +249,9 @@ def generate_lines_col_local_curve_combine(dataset, out_col,out_col_ext, names, 
                             elif dataset == 'CurveLanes':
                                 out_tmp = out_tmp / (out_col.shape[1]-1) * 1440
                                 fp.write('%.3f %.3f '% ( col_anchor[k] * 2560, out_tmp ))
+                            elif dataset == 'EdgeDetect':
+                                out_tmp = out_tmp / (out_col.shape[1]-1) * 1080
+                                fp.write('%.3f %.3f '% ( col_anchor[k] * 1920, out_tmp ))
                             else:
                                 raise Exception
 
@@ -511,6 +517,10 @@ def run_test(dataset, net, data_root, exp_name, work_dir, distributed, crop_rati
             generate_lines_local(dataset, pred['loc_row'],pred['exist_row'], names, output_path, 'normal', row_anchor=row_anchor)
             generate_lines_col_local(dataset, pred['loc_col'],pred['exist_col'], names, output_path, 'normal', col_anchor=col_anchor)
         elif dataset == 'CurveLanes':
+            generate_lines_local_curve_combine(dataset, pred['loc_row'],pred['exist_row'], names, output_path, row_anchor=row_anchor)
+            generate_lines_col_local_curve_combine(dataset, pred['loc_col'],pred['exist_col'], names, output_path, col_anchor=col_anchor)
+            revise_lines_curve_combine(names, output_path)
+        elif dataset == 'EdgeDetect':
             generate_lines_local_curve_combine(dataset, pred['loc_row'],pred['exist_row'], names, output_path, row_anchor=row_anchor)
             generate_lines_col_local_curve_combine(dataset, pred['loc_col'],pred['exist_col'], names, output_path, col_anchor=col_anchor)
             revise_lines_curve_combine(names, output_path)
@@ -843,7 +853,7 @@ def combine_tusimple_test(work_dir,exp_name):
 
 def eval_lane(net, cfg, ep = None, logger = None):
     net.eval()
-    if cfg.dataset == 'CurveLanes':
+    if cfg.dataset in ['CurveLanes','EdgeDetect']:
         if not cfg.tta:
             run_test(cfg.dataset, net, cfg.data_root, 'curvelanes_eval_tmp', cfg.test_work_dir, cfg.distributed, cfg.crop_ratio, cfg.train_width, cfg.train_height, row_anchor = cfg.row_anchor, col_anchor = cfg.col_anchor)
         else:
