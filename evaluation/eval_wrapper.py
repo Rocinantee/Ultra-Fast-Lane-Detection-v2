@@ -853,7 +853,7 @@ def combine_tusimple_test(work_dir,exp_name):
 
 def eval_lane(net, cfg, ep = None, logger = None):
     net.eval()
-    if cfg.dataset in ['CurveLanes','EdgeDetect']:
+    if cfg.dataset in ['CurveLanes']:
         if not cfg.tta:
             run_test(cfg.dataset, net, cfg.data_root, 'curvelanes_eval_tmp', cfg.test_work_dir, cfg.distributed, cfg.crop_ratio, cfg.train_width, cfg.train_height, row_anchor = cfg.row_anchor, col_anchor = cfg.col_anchor)
         else:
@@ -899,6 +899,54 @@ def eval_lane(net, cfg, ep = None, logger = None):
             return F
         else:
             return None
+
+    elif cfg.dataset == 'EdgeDetect':
+        if not cfg.tta:
+            run_test(cfg.dataset, net, cfg.data_root, 'curvelanes_eval_tmp', cfg.test_work_dir, cfg.distributed, cfg.crop_ratio, cfg.train_width, cfg.train_height, row_anchor = cfg.row_anchor, col_anchor = cfg.col_anchor)
+        else:
+            run_test_tta(cfg.dataset, net, cfg.data_root, 'curvelanes_eval_tmp', cfg.test_work_dir, cfg.distributed,  cfg.crop_ratio, cfg.train_width, cfg.train_height, row_anchor = cfg.row_anchor, col_anchor = cfg.col_anchor)
+        synchronize()   # wait for all results
+        if is_main_process():
+            res = call_curvelane_eval(cfg.data_root, 'curvelanes_eval_tmp', cfg.test_work_dir)
+            TP,FP,FN = 0,0,0
+            for k, v in res.items():
+                val = float(v['Fmeasure']) if 'nan' not in v['Fmeasure'] else 0
+                val_tp,val_fp,val_fn = int(v['tp']),int(v['fp']),int(v['fn'])
+                TP += val_tp
+                FP += val_fp
+                FN += val_fn
+                dist_print(k,val)
+                if logger is not None:
+                    if k == 'res_cross':
+                        logger.add_scalar('CuEval_cls/'+k,val_fp,global_step = ep)
+                        continue
+                    logger.add_scalar('CuEval_cls/'+k,val,global_step = ep)
+            if TP + FP == 0:
+                P = 0
+                print("nearly no results!")
+            else:
+                P = TP * 1.0/(TP + FP)
+            if TP + FN == 0:
+                R = 0
+                print("nearly no results!")
+            else:
+                R = TP * 1.0/(TP + FN)
+            if (P+R) == 0:
+                F = 0
+            else:
+                F = 2*P*R/(P + R)
+            dist_print(F)
+            if logger is not None:
+                logger.add_scalar('CuEval/total',F,global_step = ep)
+                logger.add_scalar('CuEval/P',P,global_step = ep)
+                logger.add_scalar('CuEval/R',R,global_step = ep)
+              
+        synchronize()
+        if is_main_process():
+            return F
+        else:
+            return None
+    
     elif cfg.dataset == 'CULane':
         if not cfg.tta:
             run_test(cfg.dataset, net, cfg.data_root, 'culane_eval_tmp', cfg.test_work_dir, cfg.distributed, cfg.crop_ratio, cfg.train_width, cfg.train_height, row_anchor = cfg.row_anchor, col_anchor = cfg.col_anchor)

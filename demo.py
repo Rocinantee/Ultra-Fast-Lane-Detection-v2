@@ -30,28 +30,28 @@ def pred2coords(pred, row_anchor, col_anchor, local_width = 1, original_image_wi
 
     for i in row_lane_idx:
         tmp = []
-        if valid_row[0,:,i].sum() > num_cls_row / 2:
-            for k in range(valid_row.shape[1]):
-                if valid_row[0,k,i]:
-                    all_ind = torch.tensor(list(range(max(0,max_indices_row[0,k,i] - local_width), min(num_grid_row-1, max_indices_row[0,k,i] + local_width) + 1)))
-                    
-                    out_tmp = (pred['loc_row'][0,all_ind,k,i].softmax(0) * all_ind.float()).sum() + 0.5
-                    out_tmp = out_tmp / (num_grid_row-1) * original_image_width
-                    tmp.append((int(out_tmp), int(row_anchor[k] * original_image_height)))
-            coords.append(tmp)
+        #if valid_row[0,:,i].sum() > num_cls_row / 2:
+        for k in range(valid_row.shape[1]):
+            #if valid_row[0,k,i]:
+            all_ind = torch.tensor(list(range(max(0,max_indices_row[0,k,i] - local_width), min(num_grid_row-1, max_indices_row[0,k,i] + local_width) + 1)))
+            
+            out_tmp = (pred['loc_row'][0,all_ind,k,i].softmax(0) * all_ind.float()).sum() + 0.5
+            out_tmp = out_tmp / (num_grid_row-1) * original_image_width
+            tmp.append((int(out_tmp), int(row_anchor[k] * original_image_height)))
+        coords.append(tmp)
 
-    for i in col_lane_idx:
-        tmp = []
-        if valid_col[0,:,i].sum() > num_cls_col / 4:
-            for k in range(valid_col.shape[1]):
-                if valid_col[0,k,i]:
-                    all_ind = torch.tensor(list(range(max(0,max_indices_col[0,k,i] - local_width), min(num_grid_col-1, max_indices_col[0,k,i] + local_width) + 1)))
+    # for i in col_lane_idx:
+    #     tmp = []
+    #     if valid_col[0,:,i].sum() > num_cls_col / 4:
+    #         for k in range(valid_col.shape[1]):
+    #             if valid_col[0,k,i]:
+    #                 all_ind = torch.tensor(list(range(max(0,max_indices_col[0,k,i] - local_width), min(num_grid_col-1, max_indices_col[0,k,i] + local_width) + 1)))
                     
-                    out_tmp = (pred['loc_col'][0,all_ind,k,i].softmax(0) * all_ind.float()).sum() + 0.5
+    #                 out_tmp = (pred['loc_col'][0,all_ind,k,i].softmax(0) * all_ind.float()).sum() + 0.5
 
-                    out_tmp = out_tmp / (num_grid_col-1) * original_image_height
-                    tmp.append((int(col_anchor[k] * original_image_width), int(out_tmp)))
-            coords.append(tmp)
+    #                 out_tmp = out_tmp / (num_grid_col-1) * original_image_height
+    #                 tmp.append((int(col_anchor[k] * original_image_width), int(out_tmp)))
+    #         coords.append(tmp)
 
     return coords
 if __name__ == "__main__":
@@ -91,6 +91,13 @@ if __name__ == "__main__":
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
+
+    gray_transforms = transforms.Compose([
+        transforms.Resize((int(cfg.train_height / cfg.crop_ratio), cfg.train_width)),
+        transforms.ToTensor(),
+        transforms.Normalize(0.5, 0.25),
+    ])
+    
     if cfg.dataset == 'CULane':
         splits = ['test0_normal.txt', 'test1_crowd.txt', 'test2_hlight.txt', 'test3_shadow.txt', 'test4_noline.txt', 'test5_arrow.txt', 'test6_curve.txt', 'test7_cross.txt', 'test8_night.txt']
         datasets = [LaneTestDataset(cfg.data_root,os.path.join(cfg.data_root, 'list/test_split/'+split),img_transform = img_transforms, crop_size = cfg.train_height) for split in splits]
@@ -100,8 +107,8 @@ if __name__ == "__main__":
         datasets = [LaneTestDataset(cfg.data_root,os.path.join(cfg.data_root, split),img_transform = img_transforms, crop_size = cfg.train_height) for split in splits]
         img_w, img_h = 1280, 720
     elif cfg.dataset == 'EdgeDetect':
-        splits = ['test.txt']
-        datasets = [LaneTestDataset(cfg.data_root,os.path.join(cfg.data_root, split),img_transform = img_transforms, crop_size = cfg.train_height) for split in splits]
+        splits = ['valid.txt']
+        datasets = [LaneTestDataset(cfg.data_root,os.path.join(cfg.data_root, 'valid/'+split),img_transform = gray_transforms, crop_size = cfg.train_height) for split in splits]
         img_w, img_h = 1920, 1080
     else:
         raise NotImplementedError
@@ -116,11 +123,12 @@ if __name__ == "__main__":
             with torch.no_grad():
                 pred = net(imgs)
 
-            vis = cv2.imread(os.path.join(cfg.data_root,names[0]))
+            vis = cv2.imread(os.path.join(cfg.data_root,'valid/'+names[0]))
             coords = pred2coords(pred, cfg.row_anchor, cfg.col_anchor, original_image_width = img_w, original_image_height = img_h)
             for lane in coords:
                 for coord in lane:
                     cv2.circle(vis,coord,5,(0,255,0),-1)
+            
             vout.write(vis)
         
         vout.release()

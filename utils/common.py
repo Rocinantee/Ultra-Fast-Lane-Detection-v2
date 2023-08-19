@@ -203,6 +203,8 @@ def get_train_loader(cfg):
 def inference(net, data_label, dataset):
     if dataset in ['CurveLanes','EdgeDetect']:
         return inference_curvelanes(net, data_label)
+    elif dataset == 'EdgeDetect':
+        return inference_edgedetect(net, data_label)
     elif dataset in ['Tusimple', 'CULane']:
         return inference_culane_tusimple(net, data_label)
     else:
@@ -221,6 +223,19 @@ def inference_culane_tusimple(net, data_label):
 
     return res_dict
 def inference_curvelanes(net, data_label):
+    pred = net(data_label['images'])
+    cls_out_ext_label = (data_label['labels_row'] != -1).long()
+    cls_out_col_ext_label = (data_label['labels_col'] != -1).long()
+
+    res_dict = {'cls_out': pred['loc_row'], 'cls_label': data_label['labels_row'], 'cls_out_col':pred['loc_col'],'cls_label_col':data_label['labels_col'],
+                'cls_out_ext':pred['exist_row'], 'cls_out_ext_label':cls_out_ext_label, 'cls_out_col_ext':pred['exist_col'],
+                'cls_out_col_ext_label':cls_out_col_ext_label, 'seg_label': data_label['seg_images'], 'seg_out_row': pred['lane_token_row'], 'seg_out_col': pred['lane_token_col'] }
+    if 'seg_out' in pred.keys():
+        res_dict['seg_out'] = pred['seg_out']
+        res_dict['seg_label'] = data_label['segs']
+    return res_dict
+
+def inference_edgedetect(net, data_label):
     pred = net(data_label['images'])
     cls_out_ext_label = (data_label['labels_row'] != -1).long()
     cls_out_col_ext_label = (data_label['labels_col'] != -1).long()

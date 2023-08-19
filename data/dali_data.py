@@ -142,8 +142,7 @@ def ExternalSourceTrainPipeline(dataset_name,batch_size, num_threads, device_id,
     with pipe:
         jpegs, seg_images, labels = fn.external_source(source=external_data, num_outputs=3)
         if dataset_name == 'EdgeDetect':
-            #images = fn.decoders.image(jpegs, device="mixed", output_type=types.GRAY)
-            images = fn.decoders.image(jpegs, device="mixed")
+            images = fn.decoders.image(jpegs, device="mixed", output_type=types.GRAY)
         else:
             images = fn.decoders.image(jpegs, device="mixed")
         seg_images = fn.decoders.image(seg_images, device="mixed")
@@ -170,15 +169,10 @@ def ExternalSourceTrainPipeline(dataset_name,batch_size, num_threads, device_id,
         seg_images = fn.resize(seg_images, resize_x=train_width, resize_y=int(train_height/top_crop), interp_type=types.INTERP_NN)
 
         if dataset_name == 'EdgeDetect':
-            # images = fn.crop_mirror_normalize(images, 
-            #                                 dtype=types.FLOAT, 
-            #                                 mean = [0.5 * 255],
-            #                                 std = [0.5 * 255],
-            #                                 crop = (train_height, train_width), crop_pos_x = 0., crop_pos_y = 1.)
             images = fn.crop_mirror_normalize(images, 
                                             dtype=types.FLOAT, 
-                                            mean = [0.485 * 255, 0.456 * 255, 0.406 * 255],
-                                            std = [0.229 * 255, 0.224 * 255, 0.225 * 255],
+                                            mean = [0.5 * 255],
+                                            std = [0.5 * 255],
                                             crop = (train_height, train_width), crop_pos_x = 0., crop_pos_y = 1.)
         else:
             images = fn.crop_mirror_normalize(images, 
@@ -239,8 +233,8 @@ class TrainCollect:
             self.original_image_width = 2560
             self.original_image_height = 1440
         elif dataset_name == 'EdgeDetect':
-            self.original_image_height = 1440
-            self.original_image_width = 2560
+            self.original_image_height = 1080
+            self.original_image_width = 1920
 
         if dataset_name == 'CurveLanes':
             pipe = ExternalSourceTrainPipeline(dataset_name,batch_size, num_threads, shard_id, eii, train_width, train_height,top_crop, normalize_image_scale = True, nscale_w = 2560, nscale_h = 1440)

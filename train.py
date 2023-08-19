@@ -12,7 +12,6 @@ import time
 from evaluation.eval_wrapper import eval_lane
 
 def train(net, data_loader, loss_dict, optimizer, scheduler,logger, epoch, metric_dict, dataset):
-    print(net)
     net.train()
     progress_bar = dist_tqdm(train_loader)
     for b_idx, data_label in enumerate(progress_bar):
@@ -146,10 +145,10 @@ if __name__ == "__main__":
         train(net, train_loader, loss_dict, optimizer, scheduler,logger, epoch, metric_dict, cfg.dataset)
         train_loader.reset()
 
-        #res = eval_lane(net, cfg, ep = epoch, logger = logger)
+        # res = eval_lane(net, cfg, ep = epoch, logger = logger)
 
-        if epoch == cfg.epoch - 1:
-            save_model(net, optimizer, epoch, work_dir, distributed)
+        # if epoch == cfg.epoch - 1:
+        #     save_model(net, optimizer, epoch, work_dir, distributed)
         
         # if res is not None and res > max_res:
         #     max_res = res
